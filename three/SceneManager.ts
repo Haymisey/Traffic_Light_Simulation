@@ -40,42 +40,51 @@ class SceneManager {
   }
 
   public init(): void {
+    // Scene setup
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
     this.scene.fog = new THREE.Fog(0x87ceeb, 50, 150);
 
+    // Camera setup
     const aspect = this.mount.clientWidth / this.mount.clientHeight;
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 200);
     this.camera.position.set(20, 20, 20);
     this.camera.lookAt(0, 0, 0);
 
+    // Renderer setup
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.mount.clientWidth, this.mount.clientHeight);
     this.renderer.shadowMap.enabled = true;
     this.mount.appendChild(this.renderer.domElement);
 
+    // Orbit controls for camera interaction
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    
+
     this.setupLights();
     this.setupPaths();
     this.setupSceneElements();
-    
+
     this.spawnInitialVehicles();
-    
-    window.addEventListener('resize', this.onWindowResize);
-    this.renderer.domElement.addEventListener('click', this.onClick);
+
+    window.addEventListener("resize", this.onWindowResize);
+    this.renderer.domElement.addEventListener("click", this.onClick);
   }
 
   private setupSceneElements(): void {
+    // Add road and traffic light logic
     this.road = new Road(this.scene);
-    this.trafficLightController = new TrafficLightController(this.scene, this.paths);
+    this.trafficLightController = new TrafficLightController(
+      this.scene,
+      this.paths
+    );
     this.addInitialScenery();
   }
 
   private spawnInitialVehicles(): void {
-    this.spawnVehicle(PathDirection.NORTH_TO_SOUTH, 'car');
-    this.spawnVehicle(PathDirection.EAST_TO_WEST, 'car');
+    // Spawn two starting cars
+    this.spawnVehicle(PathDirection.NORTH_TO_SOUTH, "car");
+    this.spawnVehicle(PathDirection.EAST_TO_WEST, "car");
   }
 
   private setupLights(): void {
@@ -102,47 +111,99 @@ class SceneManager {
   }
 
   private setupPaths(): void {
+    // Define four directional vehicle paths and their stop lines
     const intersectionHalfSize = INTERSECTION_SIZE / 2;
     const startOffset = ROAD_LENGTH / 2 + intersectionHalfSize;
-    const laneCenterOffset = ROAD_WIDTH / 4; 
+    const laneCenterOffset = ROAD_WIDTH / 4;
     const stopLineOffset = intersectionHalfSize;
 
     this.paths = [
-      { id: PathDirection.NORTH_TO_SOUTH, start: new THREE.Vector3(laneCenterOffset, 0, startOffset), end: new THREE.Vector3(laneCenterOffset, 0, -startOffset), stopLine: stopLineOffset, trafficLightId: LightId.NORTH_SOUTH, axis: 'z' },
-      { id: PathDirection.SOUTH_TO_NORTH, start: new THREE.Vector3(-laneCenterOffset, 0, -startOffset), end: new THREE.Vector3(-laneCenterOffset, 0, startOffset), stopLine: -stopLineOffset, trafficLightId: LightId.NORTH_SOUTH, axis: 'z' },
-      { id: PathDirection.EAST_TO_WEST, start: new THREE.Vector3(startOffset, 0, -laneCenterOffset), end: new THREE.Vector3(-startOffset, 0, -laneCenterOffset), stopLine: stopLineOffset, trafficLightId: LightId.EAST_WEST, axis: 'x' },
-      { id: PathDirection.WEST_TO_EAST, start: new THREE.Vector3(-startOffset, 0, laneCenterOffset), end: new THREE.Vector3(startOffset, 0, laneCenterOffset), stopLine: -stopLineOffset, trafficLightId: LightId.EAST_WEST, axis: 'x' }
+      {
+        id: PathDirection.NORTH_TO_SOUTH,
+        start: new THREE.Vector3(laneCenterOffset, 0, startOffset),
+        end: new THREE.Vector3(laneCenterOffset, 0, -startOffset),
+        stopLine: stopLineOffset,
+        trafficLightId: LightId.NORTH_SOUTH,
+        axis: "z",
+      },
+      {
+        id: PathDirection.SOUTH_TO_NORTH,
+        start: new THREE.Vector3(-laneCenterOffset, 0, -startOffset),
+        end: new THREE.Vector3(-laneCenterOffset, 0, startOffset),
+        stopLine: -stopLineOffset,
+        trafficLightId: LightId.NORTH_SOUTH,
+        axis: "z",
+      },
+      {
+        id: PathDirection.EAST_TO_WEST,
+        start: new THREE.Vector3(startOffset, 0, -laneCenterOffset),
+        end: new THREE.Vector3(-startOffset, 0, -laneCenterOffset),
+        stopLine: stopLineOffset,
+        trafficLightId: LightId.EAST_WEST,
+        axis: "x",
+      },
+      {
+        id: PathDirection.WEST_TO_EAST,
+        start: new THREE.Vector3(-startOffset, 0, laneCenterOffset),
+        end: new THREE.Vector3(startOffset, 0, laneCenterOffset),
+        stopLine: -stopLineOffset,
+        trafficLightId: LightId.EAST_WEST,
+        axis: "x",
+      },
     ];
   }
 
   private addInitialScenery(): void {
+    // Add sample buildings
     const buildingGeo = new THREE.BoxGeometry(8, 15, 8);
     const buildingMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-    const createBuilding = (pos: THREE.Vector3, geo = buildingGeo, mat = buildingMat) => {
-        const building = new THREE.Mesh(geo, mat);
-        building.position.copy(pos);
-        building.castShadow = true;
-        building.receiveShadow = true;
-        this.scene.add(building);
+    const createBuilding = (
+      pos: THREE.Vector3,
+      geo = buildingGeo,
+      mat = buildingMat
+    ) => {
+      const building = new THREE.Mesh(geo, mat);
+      building.position.copy(pos);
+      building.castShadow = true;
+      building.receiveShadow = true;
+      this.scene.add(building);
     };
     createBuilding(new THREE.Vector3(15, 7.5, 15));
-    createBuilding(new THREE.Vector3(-18, 5, -20), new THREE.BoxGeometry(6, 10, 12));
+    createBuilding(
+      new THREE.Vector3(-18, 5, -20),
+      new THREE.BoxGeometry(6, 10, 12)
+    );
   }
 
 
   public spawnVehicle(pathDir?: PathDirection, type?: 'car' | 'ambulance'): void {
+    // Vehicle spawn logic with limit and collision check
     const totalVehicles = this.cars.length + this.ambulances.length;
     if (totalVehicles >= 20) return;
 
-    const randomPathIndex = pathDir !== undefined ? this.paths.findIndex(p => p.id === pathDir) : Math.floor(Math.random() * this.paths.length);
+    const randomPathIndex =
+      pathDir !== undefined
+        ? this.paths.findIndex((p) => p.id === pathDir)
+        : Math.floor(Math.random() * this.paths.length);
     const pathToSpawn = this.paths[randomPathIndex];
-    
-    const allVehicles: { getPosition: () => THREE.Vector3 }[] = [...this.cars, ...this.ambulances];
-    if (allVehicles.some(v => v.getPosition().distanceTo(pathToSpawn.start) < SPAWN_CHECK_RADIUS_CAR)) return;
 
-    const vehicleType = type || (this.ambulances.length < 1 && Math.random() < 0.1 ? 'ambulance' : 'car');
-    
-    if (vehicleType === 'ambulance') {
+    const allVehicles: { getPosition: () => THREE.Vector3 }[] = [
+      ...this.cars,
+      ...this.ambulances,
+    ];
+    if (
+      allVehicles.some(
+        (v) =>
+          v.getPosition().distanceTo(pathToSpawn.start) < SPAWN_CHECK_RADIUS_CAR
+      )
+    )
+      return;
+
+    const vehicleType =
+      type ||
+      (this.ambulances.length < 1 && Math.random() < 0.1 ? "ambulance" : "car");
+
+    if (vehicleType === "ambulance") {
       this.spawnAmbulance(pathToSpawn.id);
     } else {
       this.spawnCar(pathToSpawn.id);
