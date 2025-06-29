@@ -1,33 +1,75 @@
 
 import * as THREE from 'three';
+import { TrafficLightState, PathDirection, LightId, CarAIState } from './constants';
 
-export interface PlanetData {
+export interface CarProps {
   id: string;
-  name: string;
-  radius: number; // Visual radius in the scene
-  color: THREE.ColorRepresentation;
-  orbitRadius: number; // Distance from the Sun
-  orbitSpeed: number; // Radians per frame (approx)
-  rotationSpeed: number; // Radians per frame (approx)
-  textureSeed?: number; // For procedural texturing or variation
-  tilt?: number; // Axial tilt in radians
-  rings?: {
-    innerRadius: number;
-    outerRadius: number;
-    color: THREE.ColorRepresentation;
-  };
-  moons?: MoonData[];
-  description?: string; // Simple description for UI
-  detailedFeatures?: (planetMesh: THREE.Object3D) => THREE.Object3D[]; // Function to add detailed features
+  pathDirection: PathDirection;
+  scene: THREE.Scene;
+  color?: number;
+  isTruck?: boolean;
 }
 
-export interface MoonData {
-  id: string;
-  name: string;
-  radius: number;
-  color: THREE.ColorRepresentation;
-  orbitRadius: number; // Distance from its planet
-  orbitSpeed: number;
+export interface AmbulanceProps {
+  id:string;
+  pathDirection: PathDirection;
+  scene: THREE.Scene;
 }
 
-export type CelestialBody = THREE.Mesh | THREE.Group;
+export interface TrafficLightControllerInterface {
+  update(delta: number, emergencyVehicles: EmergencyVehicle[]): void;
+  getLightState(lightId: LightId): TrafficLightState;
+  getLightObject(direction: PathDirection): THREE.Group | undefined;
+  dispose(): void;
+  reset(): void;
+}
+
+export interface TrafficSignal {
+  lightPole: THREE.Mesh;
+  lightHousing: THREE.Mesh;
+  redLight: THREE.Mesh;
+  greenLight: THREE.Mesh;
+  yellowLight: THREE.Mesh;
+  setLightState(state: TrafficLightState): void;
+  getGroup(): THREE.Group;
+}
+
+export interface Path {
+    id: PathDirection;
+    start: THREE.Vector3;
+    end: THREE.Vector3;
+    stopLine: number; // z or x coordinate of stop line relative to intersection center
+    trafficLightId: LightId;
+    axis: 'x' | 'z'; // Primary axis of movement
+}
+
+
+// For Grounding Chunks if using Gemini Search (not used in this project)
+export interface GroundingChunkWeb {
+  uri: string;
+  title: string;
+}
+export interface GroundingChunk {
+  web: GroundingChunkWeb;
+}
+
+// Interface for modular emergency vehicles
+export interface EmergencyVehicle {
+    id: string;
+    group: THREE.Group;
+    currentPath: Path;
+    isEmergencyActive: boolean;
+    getWantsGreenLight(): LightId | null;
+    getPosition(): THREE.Vector3;
+    isAheadOf(position: THREE.Vector3): boolean;
+    getPublicState(): SelectedVehicleInfo;
+    toggleSiren(): void;
+}
+
+export interface SelectedVehicleInfo {
+  id: string;
+  type: 'car' | 'ambulance';
+  speed: number;
+  aiState: string; // The string representation of CarAIState
+  isEmergencyActive?: boolean;
+}
